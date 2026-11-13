@@ -6,24 +6,21 @@ import tokenizer as tkn
 from setup import DATA_PATH, build_vocab, load_text
 
 
-def encode_to_array(text, stoi) -> NDArray[np.int64]:
-    tokens: list = tkn.encode(text, stoi)
-    return np.array(tokens, dtype=np.int64)
+def encode_to_array(text: str, stoi: dict[str, int]) -> NDArray[np.int64]:
+    return np.fromiter(map(stoi.__getitem__, text), dtype=np.int64, count=len(text))
 
 def split_array(data: NDArray[np.int64]) -> list[NDArray[np.int64]]:
     index: int = int(len(data) * 0.9)
     return np.split(data, [index])
 
-def count_bigrams(data, vocab_size):
-    N = np.zeros((vocab_size, vocab_size), dtype=np.int64)
-    for x, y in zip(data, data[1:]):
-        N[x, y] += 1
-    return N
+def count_bigrams(data: NDArray[np.int64], vocab_size: int) -> NDArray[np.int64]:
+    pairs = data[:-1] * vocab_size + data[1:]
+    return np.bincount(pairs, minlength=vocab_size * vocab_size).reshape(vocab_size, vocab_size)
 
-def normalize(N, smooth = 1):
-    smoothed = N + smooth
-    ret = smoothed / smoothed.sum(axis=1, keepdims=True)
-    return ret
+def normalize(N: NDArray[np.int64], smooth: float = 1) -> NDArray[np.float64]:
+    P = (N + smooth).astype(np.float64)
+    P /= P.sum(axis=1, keepdims=True)
+    return P
 
 if __name__ == "__main__":
     text: str = load_text(DATA_PATH)
@@ -47,7 +44,7 @@ if __name__ == "__main__":
     assert N.sum() == len(train) - 1
     print(N[stoi['e']])
     
-    top = np.argsort(N.flatten())[-10:][::-1]
+    top = np.argsort(N, axis=None)[-10:][::-1]
     print(top)
     for i in top:
         x, y = divmod(i, vocab_size)
